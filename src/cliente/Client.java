@@ -1,4 +1,4 @@
-package servidor;
+package cliente;
 
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
@@ -7,7 +7,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 
 import javax.swing.JFrame;
@@ -16,17 +16,20 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
-public class Server extends JFrame{
+public class Client extends JFrame {
 	private JTextField enterField;
 	private JTextArea displayArea;
 	private ObjectOutputStream output;
 	private ObjectInputStream input;
-	private ServerSocket server;
-	private Socket connection;
-	private int counter = -1;
+	private String message = "";
+	private String chatServer;
+	private Socket client;
 	
-	public Server() {
-		super("Servidor");
+	public Client(String host) {
+		
+		super("Cliente");
+		
+		chatServer = host;
 		
 		enterField = new JTextField();
 		enterField.setEditable(false);
@@ -45,51 +48,42 @@ public class Server extends JFrame{
 		add(new JScrollPane(displayArea), BorderLayout.CENTER);
 		setSize(300, 150);
 		setVisible(true);
-	} // fim do contrutor
+	}
 	
-	public void runServer(){
+	public void runClient(){
 		try {
-			server = new ServerSocket(6789, 100);
+			connectToServer();
+			getStreams();
+			processConnection();
 			
-			while (true) {
-				try {
-					waitForConnection();
-					getStreams();
-					processConnection();
-				} catch (EOFException eofException) {
-					displayMessage("Conexão com Servidor encerrada");
-					
-				}
-				finally {
-					closeConnection();
-					++counter;
-				}
-			}
-		} catch (IOException ioException ) {
+		}
+		catch (EOFException eofException) {
+			displayMessage("\nConexão do Clinte Terminada");
+		}catch (IOException ioException) {
 			ioException.printStackTrace();
+		}finally {
+			closeConnection();
 		}
 	}
 	
-	private void waitForConnection() throws IOException{
-		displayMessage("Esperando por conexão\n");
-		connection = server.accept();
-		displayMessage("Conexão "+ counter + " recebida de: "+ 
-				connection.getInetAddress().getHostName());
+	private void connectToServer() throws IOException {
+		displayMessage("Tentando conexão\n");
+		
+		client = new Socket(InetAddress.getByName(chatServer), 6789);
+		
+		displayMessage("Conectado em: " + client.getInetAddress().getHostName());
 	}
-	
+
 	private void getStreams() throws IOException {
-		output = new ObjectOutputStream(connection.getOutputStream());
+		output = new ObjectOutputStream(client.getOutputStream());
 		output.flush();
 		
-		input = new ObjectInputStream(connection.getInputStream());
+		input = new ObjectInputStream(client.getInputStream());
 		
 		displayMessage("\nTendo Fluxo I/O");
 	}
 	
 	private void processConnection() throws IOException{
-		String message = "Sucesso na conexão";
-		sendData(message);
-		
 		setTextFieldEditable(true);
 		
 		do {
@@ -104,13 +98,13 @@ public class Server extends JFrame{
 	}
 	
 	private void closeConnection() {
-		displayMessage("Terminando conexão\n");
+		displayMessage("Fechando conexão\n");
 		setTextFieldEditable(false);
 		
 		try {
 			output.close();
 			input.close();
-			connection.close();
+			client.close();
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
 		}
@@ -118,9 +112,9 @@ public class Server extends JFrame{
 	
 	private void sendData(String message) {
 		try {
-			output.writeObject("SERVIDOR>>> "+ message);
+			output.writeObject("CLIENTE>>> "+ message);
 			output.flush();
-			displayMessage("\nSERVIDOR>>> "+ message);
+			displayMessage("\nCLIENTE>>> "+ message);
 		} catch (IOException ioException) {
 			displayArea.append("\nErro ao escrever objeto");
 		}
@@ -148,12 +142,3 @@ public class Server extends JFrame{
 		});
 	}
 }
-
-
-
-
-
-
-
-
-
